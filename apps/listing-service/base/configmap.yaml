@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: listing-config
+  namespace: bmf-dev
+data:
+  SERVICE_NAME: listing-service

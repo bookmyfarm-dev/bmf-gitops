@@ -1,0 +1,49 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: listing-service
+  namespace: bmf-dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: listing-service
+  template:
+    metadata:
+      labels:
+        app: listing-service
+    spec:
+      initContainers:
+        - name: wait-for-db
+          image: postgres:16
+          command: ["sh", "-c", "until pg_isready -h listing-db -p 5432; do echo waiting for db; sleep 2; done"]
+      containers:
+        - name: api
+          image: ghcr.io/bookmyfarm-dev/bmf-listing-service:sha-bc7bc44
+          ports:
+            - containerPort: 8000
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: listing-db
+                  key: DATABASE_URL
+          envFrom:
+            - configMapRef:
+                name: listing-config
+          readinessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            initialDelaySeconds: 3
+            periodSeconds: 5
+          livenessProbe:
+            httpGet: {path: /healthz, port: 8000}
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            requests: {cpu: 100m, memory: 128Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop: ["ALL"]
